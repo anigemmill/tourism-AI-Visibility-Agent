@@ -1,0 +1,357 @@
+// Tourism AI Visibility Agent — data model
+// Architected so additional tourism businesses / destinations can be
+// onboarded without any schema or core-engine changes: every entity hangs
+// off Business by foreign key, and nothing here assumes a single tenant.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Core business + knowledge profile
+// ---------------------------------------------------------------------------
+
+model Business {
+  id          String   @id @default(cuid())
+  name        String
+  website     String
+  destination String
+  category    String
+  bookingUrl  String?
+  description String?
+  targetMarkets   String[] // e.g. ["Australia", "USA", "UK"]
+  targetSegments  String[] // e.g. ["families", "adventurous couples"]
+  socialProfiles  Json?    // { instagram: "...", facebook: "..." }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products      Product[]
+  experiences   Experience[]
+  locations     BusinessLocation[]
+  faqs          Faq[]
+  policies      Policy[]
+  reviews       Review[]
+  credentials   Credential[]
+  differentiators Differentiator[]
+  crawlSnapshots  CrawlSnapshot[]
+
+  competitorLinks CompetitorLink[] @relation("BusinessCompetitors")
+  competitorOf    CompetitorLink[] @relation("CompetitorOfBusiness")
+
+  queries         TravellerQuery[]
+  discoveryResults DiscoveryResult[]
+  visibilitySnapshots VisibilitySnapshot[]
+  contentOpportunities ContentOpportunity[]
+  factCheckIssues FactCheckIssue[]
+  dailyDigests    DailyDigest[]
+  generatedContent GeneratedContent[]
+
+  @@index([destination, category])
+}
+
+model CompetitorLink {
+  id          String   @id @default(cuid())
+  business    Business @relation("BusinessCompetitors", fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  // A competitor may or may not itself be an onboarded Business.
+  competitor    Business? @relation("CompetitorOfBusiness", fields: [competitorId], references: [id], onDelete: SetNull)
+  competitorId  String?
+  competitorName String
+  competitorWebsite String?
+  createdAt   DateTime @default(now())
+
+  @@unique([businessId, competitorName])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  name        String
+  description String?
+  priceAmount Decimal?
+  priceCurrency String?
+  priceUnit   String? // "per person", "per group", etc.
+  durationMinutes Int?
+  audiences   String[]
+  sourceUrl   String?
+  confidence  Float    @default(1) // 0-1, lower for heuristically inferred data
+  lastVerifiedAt DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  name        String
+  description String?
+  category    String? // e.g. "adventure", "culinary", "cultural"
+  audiences   String[]
+  sourceUrl   String?
+  confidence  Float    @default(1)
+
+  @@index([businessId])
+}
+
+model BusinessLocation {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  label       String?
+  address     String?
+  region      String?
+  country     String?
+  lat         Float?
+  lng         Float?
+  openingHours Json? // { mon: "9:00-17:00", ... }
+  accessibility String?
+  sourceUrl   String?
+  confidence  Float    @default(1)
+
+  @@index([businessId])
+}
+
+model Faq {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  question    String
+  answer      String
+  sourceUrl   String?
+  confidence  Float    @default(1)
+  isGenerated Boolean  @default(false) // produced by the Content Opportunity Engine
+
+  @@index([businessId])
+}
+
+model Policy {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  type        String // "cancellation", "booking", "sustainability", "child", etc.
+  summary     String
+  sourceUrl   String?
+  confidence  Float    @default(1)
+
+  @@index([businessId])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  platform    String // "Google", "TripAdvisor", "Facebook", etc.
+  rating      Float?
+  reviewCount Int?
+  summary     String?
+  sourceUrl   String?
+  fetchedAt   DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Credential {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  type        String // "award", "certification", "accreditation"
+  name        String
+  issuer      String?
+  year        Int?
+  sourceUrl   String?
+  confidence  Float    @default(1)
+
+  @@index([businessId])
+}
+
+model Differentiator {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  statement   String
+  category    String? // "sustainability", "exclusivity", "expertise", etc.
+  sourceUrl   String?
+  confidence  Float    @default(1)
+
+  @@index([businessId])
+}
+
+model CrawlSnapshot {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  status      String // "pending" | "success" | "partial" | "failed"
+  pagesCrawled Int     @default(0)
+  errors      Json?
+  rawExtract  Json?    // structured extraction payload for audit/debug
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
+}
+
+// ---------------------------------------------------------------------------
+// AI discovery monitoring
+// ---------------------------------------------------------------------------
+
+model TravellerQuery {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  text        String
+  intent      String // "discovery" | "comparison" | "planning" | "booking"
+  segment     String? // matches a target segment, if any
+  commercialIntent Float @default(0.5) // 0-1 heuristic score
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  discoveryResults DiscoveryResult[]
+
+  @@index([businessId])
+}
+
+model DiscoveryResult {
+  id            String   @id @default(cuid())
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId    String
+  query         TravellerQuery @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  queryId       String
+
+  platform      String // "openai" | "anthropic" | "perplexity" | "google_ai_overview" | "demo"
+  isDemoData    Boolean  @default(false)
+
+  businessAppears Boolean
+  positionRank    Int?      // approximate rank/order of mention if determinable
+  howDescribed    String?   // extracted snippet describing the business
+  competitorsMentioned Json? // [{ name, position }]
+  sources         Json?     // [{ title, url }] — citations surfaced by the platform, if any
+  responseText    String    // full raw response text (evidence, never fabricated)
+  confidence      Float     // 0-1 confidence in the mention-detection heuristic
+
+  createdAt     DateTime @default(now())
+
+  @@index([businessId, platform])
+  @@index([queryId])
+}
+
+// ---------------------------------------------------------------------------
+// Visibility scoring (transparent, multi-component — never a single opaque score)
+// ---------------------------------------------------------------------------
+
+model VisibilitySnapshot {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  createdAt   DateTime @default(now())
+
+  components  VisibilityComponentScore[]
+
+  @@index([businessId])
+}
+
+model VisibilityComponentScore {
+  id            String   @id @default(cuid())
+  snapshot      VisibilitySnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshotId    String
+  key           String   // "ai_discoverability" | "entity_clarity" | ... (see lib/scoring)
+  label         String
+  score         Float    // 0-100
+  explanation   String   // WHY it's strong/weak, human-readable
+  signals       Json     // the raw signals that produced this score, for transparency
+
+  @@index([snapshotId])
+}
+
+// ---------------------------------------------------------------------------
+// Content opportunity engine
+// ---------------------------------------------------------------------------
+
+model ContentOpportunity {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+
+  title       String
+  type        String // "faq" | "page" | "comparison" | "itinerary" | "destination" | "metadata"
+  rationale   String
+  relatedQuery String?
+
+  commercialIntent Float // 0-1
+  travellerDemand  Float // 0-1
+  competitionLevel Float // 0-1 (higher = more contested)
+  businessRelevance Float // 0-1
+  implementationEffort Float // 0-1 (higher = more effort)
+  priorityScore    Float // derived, 0-100
+
+  status      String   @default("open") // "open" | "in_progress" | "done" | "dismissed"
+  createdAt   DateTime @default(now())
+
+  generatedContent GeneratedContent[]
+
+  @@index([businessId, status])
+}
+
+model GeneratedContent {
+  id            String   @id @default(cuid())
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId    String
+  opportunity   ContentOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  opportunityId String?
+
+  kind          String // "faq" | "meta_description" | "structured_data" | "page_draft" | "social_post" | "internal_link"
+  title         String?
+  body          String
+  isAiGenerated Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([businessId])
+}
+
+// ---------------------------------------------------------------------------
+// AI fact-checker
+// ---------------------------------------------------------------------------
+
+model FactCheckIssue {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+
+  field       String // "price" | "hours" | "location" | "inclusions" | "policy" | "description"
+  severity    String // "critical" | "high" | "medium" | "low"
+  sourcePlatform String // where the incorrect info was found
+  sourceUrl   String?
+  claimedValue String  // what the AI/search/third-party source says
+  actualValue  String? // what the business's own profile says (source of truth)
+  bookingImpact Float  // 0-1, likelihood this could affect a booking decision
+  status      String   @default("open") // "open" | "resolved" | "dismissed"
+  detectedAt  DateTime @default(now())
+
+  @@index([businessId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Daily action engine
+// ---------------------------------------------------------------------------
+
+model DailyDigest {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  date        DateTime @default(now())
+
+  whatChanged String   // markdown summary
+  whyItMatters String  // markdown summary
+  whatToDo    Json     // [{ action, priority, opportunityId? }]
+
+  createdAt   DateTime @default(now())
+
+  @@unique([businessId, date])
+  @@index([businessId])
+}
