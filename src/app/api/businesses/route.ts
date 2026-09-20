@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { businessCreateSchema } from "@/lib/validation";
+import { requireSession } from "@/lib/auth/api-guard";
 import type { Prisma } from "@prisma/client";
 
 export async function GET() {
+  const session = await requireSession();
+  if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
   const businesses = await prisma.business.findMany({
+    where: { accountId: session.accountId },
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { discoveryResults: true, contentOpportunities: true, factCheckIssues: true } },
@@ -14,6 +19,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireSession();
+  if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
   const body = await req.json();
   const parsed = businessCreateSchema.safeParse(body);
   if (!parsed.success) {
@@ -23,6 +31,7 @@ export async function POST(req: NextRequest) {
 
   const business = await prisma.business.create({
     data: {
+      accountId: session.accountId,
       name: input.name,
       website: normalizeUrl(input.website),
       destination: input.destination,

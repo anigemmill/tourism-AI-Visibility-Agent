@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ActionButton } from "@/components/dashboard/action-button";
+import { MonitoringActionButton } from "@/components/dashboard/monitoring-action-button";
 import { DiscoveryResultList } from "@/components/dashboard/discovery-result-list";
 import { RefreshCw } from "lucide-react";
 
@@ -33,8 +33,9 @@ export default async function AiVisibilityPage({ params }: { params: Promise<{ i
             travellers ask.
           </p>
         </div>
-        <ActionButton
+        <MonitoringActionButton
           endpoint={`/api/businesses/${id}/monitor/run`}
+          summaryPath="summary"
           label="Run monitoring"
           loadingLabel="Querying platforms..."
           icon={<RefreshCw />}

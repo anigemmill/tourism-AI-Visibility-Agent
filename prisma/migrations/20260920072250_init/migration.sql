@@ -1,6 +1,28 @@
 -- CreateTable
+CREATE TABLE "Account" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "name" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Business" (
     "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "website" TEXT NOT NULL,
     "destination" TEXT NOT NULL,
@@ -10,6 +32,7 @@ CREATE TABLE "Business" (
     "targetMarkets" TEXT[],
     "targetSegments" TEXT[],
     "socialProfiles" JSONB,
+    "lastPipelineRunAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -108,6 +131,7 @@ CREATE TABLE "Review" (
     "id" TEXT NOT NULL,
     "businessId" TEXT NOT NULL,
     "platform" TEXT NOT NULL,
+    "isDemoData" BOOLEAN NOT NULL DEFAULT false,
     "rating" DOUBLE PRECISION,
     "reviewCount" INTEGER,
     "summary" TEXT,
@@ -276,7 +300,16 @@ CREATE TABLE "DailyDigest" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "User_accountId_idx" ON "User"("accountId");
+
+-- CreateIndex
 CREATE INDEX "Business_destination_category_idx" ON "Business"("destination", "category");
+
+-- CreateIndex
+CREATE INDEX "Business_accountId_idx" ON "Business"("accountId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompetitorLink_businessId_competitorName_key" ON "CompetitorLink"("businessId", "competitorName");
@@ -298,6 +331,9 @@ CREATE INDEX "Policy_businessId_idx" ON "Policy"("businessId");
 
 -- CreateIndex
 CREATE INDEX "Review_businessId_idx" ON "Review"("businessId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Review_businessId_platform_key" ON "Review"("businessId", "platform");
 
 -- CreateIndex
 CREATE INDEX "Credential_businessId_idx" ON "Credential"("businessId");
@@ -337,6 +373,12 @@ CREATE INDEX "DailyDigest_businessId_idx" ON "DailyDigest"("businessId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DailyDigest_businessId_date_key" ON "DailyDigest"("businessId", "date");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Business" ADD CONSTRAINT "Business_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CompetitorLink" ADD CONSTRAINT "CompetitorLink_businessId_fkey" FOREIGN KEY ("businessId") REFERENCES "Business"("id") ON DELETE CASCADE ON UPDATE CASCADE;

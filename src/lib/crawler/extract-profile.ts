@@ -101,7 +101,17 @@ export function heuristicExtract(pages: CrawledPage[]): KnowledgeProfileDraft {
 
   for (const page of pages) {
     extractFromJsonLd(page, draft);
-    extractFaqsFromText(page, draft);
+
+    if (page.structuredFaqs.length > 0) {
+      for (const faq of page.structuredFaqs) {
+        draft.faqs.push({ sourceUrl: page.url, confidence: 0.75, question: faq.question, answer: faq.answer });
+      }
+    } else {
+      // Only fall back to the noisier flattened-text heuristic when the
+      // page has no DOM-structured FAQ markup to draw from.
+      extractFaqsFromText(page, draft);
+    }
+
     extractPricesFromText(page, draft);
     extractHoursFromText(page, draft);
     extractCredentialsFromText(page, draft);

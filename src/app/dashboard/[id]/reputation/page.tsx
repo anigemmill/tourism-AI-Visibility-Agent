@@ -2,7 +2,10 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBar } from "@/components/dashboard/score-bar";
-import { Star, Award } from "lucide-react";
+import { ActionButton } from "@/components/dashboard/action-button";
+import { Star, Award, FlaskConical, RefreshCw } from "lucide-react";
+
+const PLATFORM_LABELS: Record<string, string> = { google_places: "Google", tripadvisor: "TripAdvisor" };
 
 export default async function ReputationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,8 +35,20 @@ export default async function ReputationPage({ params }: { params: Promise<{ id:
 
       <Card>
         <CardHeader>
-          <CardTitle>Reviews on record</CardTitle>
-          <CardDescription>Per-platform review data captured from the business profile.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Reviews on record</CardTitle>
+              <CardDescription>Per-platform review data, synced from Google and TripAdvisor.</CardDescription>
+            </div>
+            <ActionButton
+              endpoint={`/api/businesses/${id}/reviews/sync`}
+              label="Sync reviews"
+              loadingLabel="Syncing..."
+              icon={<RefreshCw />}
+              variant="outline"
+              size="sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {reviews.length === 0 ? (
@@ -42,7 +57,14 @@ export default async function ReputationPage({ params }: { params: Promise<{ id:
             <ul className="flex flex-col divide-y divide-slate-100">
               {reviews.map((r) => (
                 <li key={r.id} className="flex items-center justify-between py-3">
-                  <span className="text-sm font-medium text-slate-800">{r.platform}</span>
+                  <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    {PLATFORM_LABELS[r.platform] ?? r.platform}
+                    {r.isDemoData && (
+                      <Badge variant="warning">
+                        <FlaskConical className="size-3" /> Demo data
+                      </Badge>
+                    )}
+                  </span>
                   <div className="flex items-center gap-3 text-sm text-slate-500">
                     {r.rating != null && (
                       <span className="flex items-center gap-1">

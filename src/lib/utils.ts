@@ -15,6 +15,24 @@ export function scoreLabel(score: number): "strong" | "moderate" | "weak" {
   return "weak";
 }
 
+interface MonitoringResultLike {
+  cooldownRemainingSeconds?: number;
+  quotaExhausted?: boolean;
+}
+
+/** Turns a runMonitoring() summary into a short human note for rate-limit/quota feedback in the UI. */
+export function describeMonitoringResult(summary: MonitoringResultLike | undefined | null): string | null {
+  if (!summary) return null;
+  if (summary.cooldownRemainingSeconds) {
+    const minutes = Math.ceil(summary.cooldownRemainingSeconds / 60);
+    return `Monitoring ran recently — try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+  }
+  if (summary.quotaExhausted) {
+    return "Today's monitoring quota for this business was reached — some queries were skipped. It resets on a rolling 24h basis.";
+  }
+  return null;
+}
+
 export function formatRelativeDate(date: Date | string) {
   const d = typeof date === "string" ? new Date(date) : date;
   const diffMs = Date.now() - d.getTime();

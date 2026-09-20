@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateDailyDigest, saveDailyDigest } from "@/lib/digest/daily-digest";
+import { requireBusinessAccess } from "@/lib/auth/api-guard";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const auth = await requireBusinessAccess(id);
+  if (!auth) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+
   const history = req.nextUrl.searchParams.get("history") === "true";
 
   if (history) {
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const auth = await requireBusinessAccess(id);
+  if (!auth) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+
   const content = await generateDailyDigest(id);
   const digest = await saveDailyDigest(id, content);
   return NextResponse.json({ digest });

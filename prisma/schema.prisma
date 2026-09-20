@@ -13,11 +13,38 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
+// Accounts & users (multi-tenancy)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+  businesses Business[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId    String
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  @@index([accountId])
+}
+
+// ---------------------------------------------------------------------------
 // Core business + knowledge profile
 // ---------------------------------------------------------------------------
 
 model Business {
   id          String   @id @default(cuid())
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId   String
   name        String
   website     String
   destination String
@@ -27,6 +54,10 @@ model Business {
   targetMarkets   String[] // e.g. ["Australia", "USA", "UK"]
   targetSegments  String[] // e.g. ["families", "adventurous couples"]
   socialProfiles  Json?    // { instagram: "...", facebook: "..." }
+
+  // Rate limiting / cost control: the pipeline enforces a cooldown using
+  // this timestamp instead of a separate tracking table.
+  lastPipelineRunAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -53,6 +84,7 @@ model Business {
   generatedContent GeneratedContent[]
 
   @@index([destination, category])
+  @@index([accountId])
 }
 
 model CompetitorLink {
@@ -148,13 +180,15 @@ model Review {
   id          String   @id @default(cuid())
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   businessId  String
-  platform    String // "Google", "TripAdvisor", "Facebook", etc.
+  platform    String // "google_places" | "tripadvisor" | other connector id
+  isDemoData  Boolean  @default(false)
   rating      Float?
   reviewCount Int?
   summary     String?
   sourceUrl   String?
   fetchedAt   DateTime @default(now())
 
+  @@unique([businessId, platform])
   @@index([businessId])
 }
 

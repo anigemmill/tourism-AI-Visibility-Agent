@@ -13,16 +13,30 @@ import { computeAndSaveVisibilitySnapshot } from "../src/lib/scoring/visibility-
 import { generateContentOpportunities, saveContentOpportunities } from "../src/lib/opportunities/generate-opportunities";
 import { runFactCheck, saveFactCheckIssues } from "../src/lib/fact-check/fact-checker";
 import { generateDailyDigest, saveDailyDigest } from "../src/lib/digest/daily-digest";
+import { hashPassword } from "../src/lib/auth/password";
 
 const prisma = new PrismaClient();
 
+const DEMO_EMAIL = "demo@tourism-ai-visibility.test";
+const DEMO_PASSWORD = "demo-password-123";
+
 async function main() {
   console.log("Clearing existing demo data...");
-  await prisma.business.deleteMany({ where: { name: "Rotorua Canopy Tours (Demo)" } });
+  await prisma.account.deleteMany({ where: { users: { some: { email: DEMO_EMAIL } } } });
+
+  console.log("Creating demo account + user...");
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const account = await prisma.account.create({
+    data: {
+      name: "Demo Workspace",
+      users: { create: { email: DEMO_EMAIL, passwordHash, name: "Demo User" } },
+    },
+  });
 
   console.log("Creating demo business...");
   const business = await prisma.business.create({
     data: {
+      accountId: account.id,
       name: "Rotorua Canopy Tours (Demo)",
       website: "https://example-rotorua-canopy-tours.demo",
       destination: "Rotorua, New Zealand",
@@ -99,8 +113,8 @@ async function main() {
       },
       reviews: {
         create: [
-          { platform: "Google", rating: 4.9, reviewCount: 3400 },
-          { platform: "TripAdvisor", rating: 5.0, reviewCount: 2100 },
+          { platform: "google_places", isDemoData: true, rating: 4.9, reviewCount: 3400 },
+          { platform: "tripadvisor", isDemoData: true, rating: 5.0, reviewCount: 2100 },
         ],
       },
       credentials: {
@@ -191,6 +205,7 @@ async function main() {
   await saveDailyDigest(business.id, digestContent);
 
   console.log(`\nDone. Demo business id: ${business.id}`);
+  console.log(`Log in at /login with:\n  email:    ${DEMO_EMAIL}\n  password: ${DEMO_PASSWORD}`);
 }
 
 main()

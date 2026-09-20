@@ -44,7 +44,7 @@ export async function runFactCheck(businessId: string): Promise<FactCheckDraft[]
   return dedupe(drafts);
 }
 
-function checkPrices(
+export function checkPrices(
   result: Prisma.DiscoveryResultGetPayload<Record<string, never>>,
   products: Prisma.ProductGetPayload<Record<string, never>>[]
 ): FactCheckDraft[] {
@@ -80,7 +80,7 @@ function checkPrices(
   return drafts;
 }
 
-function checkCancellationPolicy(
+export function checkCancellationPolicy(
   result: Prisma.DiscoveryResultGetPayload<Record<string, never>>,
   policies: Prisma.PolicyGetPayload<Record<string, never>>[]
 ): FactCheckDraft[] {

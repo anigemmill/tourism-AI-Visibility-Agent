@@ -1,14 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/get-session";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Compass, Plus, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
   const businesses = await prisma.business.findMany({
+    where: { accountId: session.accountId },
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { discoveryResults: true, contentOpportunities: true, factCheckIssues: true } },
@@ -27,11 +34,14 @@ export default async function HomePage() {
             <p className="text-xs text-slate-500">AI discovery intelligence for tourism businesses</p>
           </div>
         </div>
-        <Button asChild variant="primary">
-          <Link href="/onboarding">
-            <Plus /> Add a business
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="primary">
+            <Link href="/onboarding">
+              <Plus /> Add a business
+            </Link>
+          </Button>
+          <SignOutButton />
+        </div>
       </header>
 
       {businesses.length === 0 ? (

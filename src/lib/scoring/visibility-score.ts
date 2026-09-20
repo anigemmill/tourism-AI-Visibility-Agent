@@ -85,7 +85,7 @@ export async function computeAndSaveVisibilitySnapshot(businessId: string) {
 
 type DiscoveryResultRow = Prisma.DiscoveryResultGetPayload<Record<string, never>>;
 
-function scoreAiDiscoverability(results: DiscoveryResultRow[]): ComponentScore {
+export function scoreAiDiscoverability(results: DiscoveryResultRow[]): ComponentScore {
   if (results.length === 0) {
     return {
       key: "ai_discoverability",
@@ -108,7 +108,7 @@ function scoreAiDiscoverability(results: DiscoveryResultRow[]): ComponentScore {
   };
 }
 
-function scoreEntityClarity(
+export function scoreEntityClarity(
   business: Prisma.BusinessGetPayload<{ include: { locations: true; credentials: true; differentiators: true } }>,
   latestCrawl: Prisma.CrawlSnapshotGetPayload<Record<string, never>> | null
 ): ComponentScore {
@@ -139,7 +139,7 @@ function scoreEntityClarity(
   };
 }
 
-function scoreTopicalRelevance(results: DiscoveryResultRow[]): ComponentScore {
+export function scoreTopicalRelevance(results: DiscoveryResultRow[]): ComponentScore {
   const segments = new Map<string, { total: number; appeared: number }>();
   // Topical relevance uses whichever queries actually ran; segment isn't on
   // DiscoveryResult directly so we approximate breadth via platform diversity
@@ -161,7 +161,7 @@ function scoreTopicalRelevance(results: DiscoveryResultRow[]): ComponentScore {
   };
 }
 
-function scoreDestinationRelevance(results: DiscoveryResultRow[], destination: string): ComponentScore {
+export function scoreDestinationRelevance(results: DiscoveryResultRow[], destination: string): ComponentScore {
   // We don't have query text on the result row directly (joined via queryId),
   // so this component reads from the confidence-weighted appearance rate as
   // a conservative proxy until query text is joined in by the caller.
@@ -180,7 +180,7 @@ function scoreDestinationRelevance(results: DiscoveryResultRow[], destination: s
   };
 }
 
-function scoreContentCoverage(counts: {
+export function scoreContentCoverage(counts: {
   faqCount: number;
   policyCount: number;
   productCount: number;
@@ -207,7 +207,7 @@ function scoreContentCoverage(counts: {
   };
 }
 
-function scoreThirdPartyAuthority(
+export function scoreThirdPartyAuthority(
   business: Prisma.BusinessGetPayload<{ include: { credentials: true } }>,
   results: DiscoveryResultRow[]
 ): ComponentScore {
@@ -236,7 +236,7 @@ function scoreThirdPartyAuthority(
   };
 }
 
-function scoreReviewReputation(reviews: Prisma.ReviewGetPayload<Record<string, never>>[]): ComponentScore {
+export function scoreReviewReputation(reviews: Prisma.ReviewGetPayload<Record<string, never>>[]): ComponentScore {
   if (reviews.length === 0) {
     return {
       key: "review_reputation",
@@ -261,7 +261,7 @@ function scoreReviewReputation(reviews: Prisma.ReviewGetPayload<Record<string, n
   };
 }
 
-function scoreTechnicalAccessibility(
+export function scoreTechnicalAccessibility(
   latestCrawl: Prisma.CrawlSnapshotGetPayload<Record<string, never>> | null
 ): ComponentScore {
   if (!latestCrawl) {
@@ -285,7 +285,7 @@ function scoreTechnicalAccessibility(
   };
 }
 
-function scoreCompetitiveVisibility(results: DiscoveryResultRow[], competitorNames: string[]): ComponentScore {
+export function scoreCompetitiveVisibility(results: DiscoveryResultRow[], competitorNames: string[]): ComponentScore {
   if (results.length === 0 || competitorNames.length === 0) {
     return {
       key: "competitive_visibility",

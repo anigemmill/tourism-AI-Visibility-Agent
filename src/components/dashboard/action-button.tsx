@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 
 interface ActionButtonProps extends Omit<ButtonProps, "onClick"> {
@@ -13,6 +13,8 @@ interface ActionButtonProps extends Omit<ButtonProps, "onClick"> {
   loadingLabel?: string;
   icon?: React.ReactNode;
   onDone?: (data: unknown) => void;
+  /** Extracts a short inline note from the response to show under the button (e.g. a rate-limit notice). Return null to show nothing. */
+  getNote?: (data: unknown) => string | null;
 }
 
 export function ActionButton({
@@ -23,14 +25,17 @@ export function ActionButton({
   loadingLabel,
   icon,
   onDone,
+  getNote,
   ...buttonProps
 }: ActionButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleClick() {
     setLoading(true);
+    setNote(null);
     try {
       const res = await fetch(endpoint, {
         method,
@@ -39,6 +44,7 @@ export function ActionButton({
       });
       const data = await res.json().catch(() => null);
       onDone?.(data);
+      setNote(getNote?.(data) ?? null);
       startTransition(() => router.refresh());
     } finally {
       setLoading(false);
@@ -48,9 +54,16 @@ export function ActionButton({
   const busy = loading || isPending;
 
   return (
-    <Button {...buttonProps} onClick={handleClick} disabled={busy || buttonProps.disabled}>
-      {busy ? <Loader2 className="animate-spin" /> : icon}
-      {busy ? (loadingLabel ?? label) : label}
-    </Button>
+    <div className="flex flex-col items-start gap-1.5">
+      <Button {...buttonProps} onClick={handleClick} disabled={busy || buttonProps.disabled}>
+        {busy ? <Loader2 className="animate-spin" /> : icon}
+        {busy ? (loadingLabel ?? label) : label}
+      </Button>
+      {note && (
+        <p className="flex items-center gap-1 text-xs text-amber-600">
+          <Info className="size-3" /> {note}
+        </p>
+      )}
+    </div>
   );
 }

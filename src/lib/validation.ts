@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+export const signupSchema = z.object({
+  accountName: z.string().min(1).max(200),
+  name: z.string().max(200).optional(),
+  email: z.string().email(),
+  password: z.string().min(8).max(200),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1).max(200),
+});
+
 export const businessCreateSchema = z.object({
   name: z.string().min(1).max(200),
   website: z.string().min(1).max(500),

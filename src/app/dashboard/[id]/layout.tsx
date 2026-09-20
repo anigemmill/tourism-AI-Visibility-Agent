@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Compass, MapPin, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/get-session";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { ActionButton } from "@/components/dashboard/action-button";
+import { MonitoringActionButton } from "@/components/dashboard/monitoring-action-button";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,13 @@ export default async function DashboardLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await getSession();
+  if (!session) redirect("/login");
+
   const business = await prisma.business.findUnique({ where: { id } });
-  if (!business) notFound();
+  // 404 rather than 403 for a business belonging to another account, so a
+  // cross-tenant request can't distinguish "doesn't exist" from "isn't yours."
+  if (!business || business.accountId !== session.accountId) notFound();
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
@@ -45,8 +51,9 @@ export default async function DashboardLayout({
               </p>
             </div>
           </div>
-          <ActionButton
+          <MonitoringActionButton
             endpoint={`/api/businesses/${business.id}/pipeline/run`}
+            summaryPath="steps.monitoring"
             label="Run full analysis"
             loadingLabel="Running analysis..."
             variant="primary"
